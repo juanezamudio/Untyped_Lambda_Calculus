@@ -1,3 +1,3 @@
-# README for Hw06
+# Untyped Lambda Calculus Interpreter
 
 Author: Juan Zamudio

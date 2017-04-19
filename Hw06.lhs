@@ -1,8 +1,7 @@
 > {-# OPTIONS_GHC -Wall -fno-warn-unused-imports #-}
 
-> module Hw06 where
->
 > import Control.Applicative
+> import Control.Monad.Except
 > import Data.Char
 > import Data.String
 >
@@ -12,40 +11,46 @@
 
 > type VarName = String
 >
-> data LExp = 
->     Var VarName
->   | LExp LExp
->   | Token LExp Token LExp
+> newtype Parser a = Parser { parse :: String -> Maybe (a, String) }
+>
+> keywords :: [String]
+> keywords = ["let", "in", "=", "lambda", "."]
+>
+> kw :: String -> Parser ()
+> kw s = pure () <* spaces <* (sequenceA $ map (ensure (satisfy . (==))) s)
+>
+> var :: Parser VarName
+> var = ensure (not . (`elem` keywords)) (spaces *> id)
+>  where id = (:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)
+>
+> data LC = 
+>     Var VarName 
+>   | App LC LC 
+>   | Lam VarName LC 
 >   deriving Show
 >
-> data Token =
->     TCompose 
->   | TLambda 
->   | TLParen
->   | TRParen
->   | TLet
->   | TEquals
->   | TIn
->   deriving (Show, Eq)
+> apply :: LC -> [LC] -> LC
+> apply e1 [] = e1
+> apply e1 (e2:es) = apply (App e1 e2) es
 >
-> lexer :: String -> [Token]
-> lexer [] = []
-> lexer (w:s) | isSpace w = lexer (dropWhile isSpace s)
-> lexer ('.',s) = TCompose : lexer s
-> lexer ("lambda",s) = TLambda : lexer s
-> lexer ('(',s) = TLParen : lexer s
-> lexer (')',s) = TRParen : lexer s
-> lexer ("let",s) = TLet : lexer s
-> lexer ('=',s) = TEquals : lexer s
-> lexer ("in",s) = TIn : lexer s
+> apply' :: LC -> [LC] -> LC
+> apply' e1 es = foldl App e1 es
 >
+> mkLam :: [VarName] -> LC -> LC
+> mkLam xs e = foldr Lam e xs
 >
+> expr, atom, lam :: Parser LC
+> expr =     foldl App <$> atom <*> many atom
+> atom =     lam 
+>        <|> Var <$> var
+>        <|> char '(' *> expr <* char ')'
+> lam = (\xs e -> foldr Lam e xs) <$> (kw "lambda" *> vars) <*> (char '.' *> expr)
 >
-> newtype Parser a = Parser { parse :: String -> Maybe  }
+> vars :: Parser [VarName]
+> vars = some var
 >
 > instance Show LExp where
 >   show (Var x) = x
 >   show ()
 >
->
-> interp :: LExp -> LExp
+>> interp :: LExp -> LExp
