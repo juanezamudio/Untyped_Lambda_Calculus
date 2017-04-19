@@ -14,14 +14,17 @@
 > newtype Parser a = Parser { parse :: String -> Maybe (a, String) }
 >
 > keywords :: [String]
-> keywords = ["let", "in", "=", "lambda", "."]
+> keywords = ["let", "in", "lambda",]
 >
 > kw :: String -> Parser ()
-> kw s = pure () <* spaces <* (sequenceA $ map (ensure (satisfy . (==))) s)
+> kw s = pure () <* spaces <* (sequenceA $ map (ensure (s == s) (satisfy . (==))) s)
 >
 > var :: Parser VarName
 > var = ensure (not . (`elem` keywords)) (spaces *> id)
 >  where id = (:) <$> satisfy isAlpha <*> many (satisfy isAlphaNum)
+>
+> spaces :: Parser ()
+> spaces = many (satisfy isSpace) *> pure ()
 >
 > data LC = 
 >     Var VarName 
@@ -39,17 +42,18 @@
 > mkLam :: [VarName] -> LC -> LC
 > mkLam xs e = foldr Lam e xs
 >
-> expr, atom, lam :: Parser LC
+> expr, atom, lam, lin :: Parser LC
 > expr =     foldl App <$> atom <*> many atom
 > atom =     lam 
 >        <|> Var <$> var
 >        <|> char '(' *> expr <* char ')'
 > lam = (\xs e -> foldr Lam e xs) <$> (kw "lambda" *> vars) <*> (char '.' *> expr)
+> lin =  <$> (kw "let" *> var <* char '=' *> expr kw "in" 
 >
 > vars :: Parser [VarName]
 > vars = some var
 >
-> instance Show LExp where
+> instance Show LC where
 >   show (Var x) = x
 >   show ()
 >
