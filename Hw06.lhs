@@ -52,16 +52,21 @@
 >      Just (a,s') -> Just (a,s')
 >      Nothing -> parse p2 s
 >
->
+> str :: String -> Parser String
+> str s = spaces *> loop s
+>   where loop [] = pure []
+>         loop (c:cs) = (:) <$> satisfy (==c) <*> loop cs
 >
 > type VarName = String
 >
 > keywords :: [String]
 > keywords = ["let", "in", "lambda"]
 >
+> isKeyword :: String -> Bool
+> isKeyword = (`elem` keywords)
+>
 > kw :: String -> Parser String
-> kw s = spaces *> Parser f  
->  where f x = if (s == x && s `elem` keywords) then sequenceA $ map (satisfy . (==)) s else Nothing
+> kw s = let x = str s in Parser $ \s' -> if (s == s') then x else Nothing
 >
 > kw' :: String -> Parser ()
 > kw' s = pure () <* spaces <* ensure (`elem` keywords) word
@@ -105,7 +110,7 @@
 >        <|> lin 
 >        <|> Var <$> var
 >        <|> char '(' *> expr <* char ')'
-> lam = (\xs e -> foldr Lam e xs) <$> (kw "lambda" *> vars) <*> (char '.' *> expr)
+> lam = (\xs e -> foldr Lam e xs) <$> (kw' "lambda" *> vars) <*> (char '.' *> expr)
 > lin = letIn <$> (kw "let" *> var) <*> (char '=' *> expr <* kw "in") <*> expr
 >
 >
